@@ -1,27 +1,96 @@
-version: '3.9'
+version: "3.9"
 
 services:
-  
+
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     container_name: ollama
+    restart: unless-stopped
     ports:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
-  
-  Openclaw:
-    image: openclaw/openclaw
+    networks:
+      - ai_network
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
     container_name: openclaw
+    restart: unless-stopped
     depends_on:
       - ollama
+      - redis
+      - postgres
+    ports:
+      - "127.0.0.1:18789:18789"
+    volumes:
+      - openclaw_config:/home/node/.openclaw
+      - openclaw_workspace:/workspace
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+    networks:
+      - ai_network
+      - backend_network
+    mem_limit: 2g
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openclaw
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_network
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend_network
+
+  padws:
+    image: ghcr.io/pad-ws/pad.ws:latest
+    container_name: padws
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
     ports:
       - "3000:3000"
-    volumes:
-      - openclaw_data:/app/data
     environment:
-      - OLLAMA_HOST=https://ollama:11434
+      - DATABASE_URL=postgres://openclaw:${POSTGRES_PASSWORD}@postgres:5432/openclaw
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - padws_data:/data
+    networks:
+      - backend_network
 
 volumes:
+
   ollama_models:
-  openclaw_data:
+  openclaw_config:
+  openclaw_workspace:
+  postgres_data:
+  redis_data:
+  padws_data:
+
+networks:
+
+  ai_network:
+    driver: bridge
+
+  backend_network:
+    driver: bridge
