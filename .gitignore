@@ -1,0 +1,33 @@
+# environment variables
+.env
+.env.*
+
+# secrets
+secrets/
+*.key
+*.pem
+
+# docker runtime data
+data/
+volumes/
+postgres_data/
+redis_data/
+ollama_models/
+
+# logs
+logs/
+*.log
+
+# backups
+backups/
+
+# local configuration
+config.local.yml
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
