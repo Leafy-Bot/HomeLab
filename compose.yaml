@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+  
+  Openclaw:
+    image: openclaw/openclaw
+    container_name: openclaw
+    depends_on:
+      - ollama
+    ports:
+      - "3000:3000"
+    volumes:
+      - openclaw_data:/app/data
+    environment:
+      - OLLAMA_HOST=https://ollama:11434
+
+volumes:
+  ollama_models:
+  openclaw_data:
