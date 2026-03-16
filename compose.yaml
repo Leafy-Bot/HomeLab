@@ -6,25 +6,32 @@ services:
     image: ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
+    profiles: ["ai"]
     ports:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
     networks:
-      - ai_network
+      - ai_net
     deploy:
       resources:
-        limits:
-          memory: 6g
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    security_opt:
+      - no-new-privileges:true
 
   openclaw:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: openclaw
     restart: unless-stopped
+    profiles: ["ai"]
     depends_on:
       - ollama
-      - redis
       - postgres
+      - redis
     ports:
       - "127.0.0.1:18789:18789"
     volumes:
@@ -35,14 +42,19 @@ services:
       - REDIS_HOST=redis
       - POSTGRES_HOST=postgres
     networks:
-      - ai_network
-      - backend_network
+      - ai_net
+      - backend_net
     mem_limit: 2g
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   postgres:
     image: postgres:16
     container_name: postgres
     restart: unless-stopped
+    profiles: ["core"]
     environment:
       POSTGRES_DB: openclaw
       POSTGRES_USER: openclaw
@@ -50,21 +62,23 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - backend_network
+      - backend_net
 
   redis:
     image: redis:7
     container_name: redis
     restart: unless-stopped
+    profiles: ["core"]
     volumes:
       - redis_data:/data
     networks:
-      - backend_network
+      - backend_net
 
   padws:
     image: ghcr.io/pad-ws/pad.ws:latest
     container_name: padws
     restart: unless-stopped
+    profiles: ["dev"]
     depends_on:
       - postgres
       - redis
@@ -76,7 +90,9 @@ services:
     volumes:
       - padws_data:/data
     networks:
-      - backend_network
+      - backend_net
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
 
@@ -89,8 +105,8 @@ volumes:
 
 networks:
 
-  ai_network:
+  ai_net:
     driver: bridge
 
-  backend_network:
+  backend_net:
     driver: bridge
